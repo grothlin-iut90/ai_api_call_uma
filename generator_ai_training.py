@@ -168,7 +168,7 @@ Return ONLY the JSON object, no markdown formatting, no additional text."""
 
 
 # ==================== API CALL FUNCTIONS ====================
-def call_gemini_api(prompt: str, api_key: str) -> str:
+def call_gemini_api(prompt: str, api_key: str, model_arg: str) -> str:
     """Call Google Gemini API.
 
     Prefer the official `google.genai` client when available (per the Gemini
@@ -199,7 +199,7 @@ def call_gemini_api(prompt: str, api_key: str) -> str:
         resp = None
         if client is not None:
             resp = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model=model_arg,
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     temperature=0.7
@@ -218,7 +218,7 @@ def call_gemini_api(prompt: str, api_key: str) -> str:
         return None
 
 
-def call_mistral_api(prompt: str, api_key: str) -> str:
+def call_mistral_api(prompt: str, api_key: str, model_arg: str) -> str:
     """Call Mistral AI API"""
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -226,7 +226,7 @@ def call_mistral_api(prompt: str, api_key: str) -> str:
     }
     
     payload = {
-        "model": "mistral-small-latest",
+        "model": model_arg,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.7,
         "max_tokens": 1000
@@ -242,7 +242,7 @@ def call_mistral_api(prompt: str, api_key: str) -> str:
         # Print detailed error message
         try:
             error_data = response.json()
-            error_msg = error_data.get("message", str(e))
+            error_msg = error_data.get("message", str(e))   
             print(f"    Mistral API Error: {error_msg}")
         except:
             print(f"    HTTP Error: {e}")
@@ -287,9 +287,38 @@ def load_datasets():
     
     return data
 
+# ==================== MODEL SELECTION ====================
+def choose_model_size(api_type: str, model_arg: str) -> str:
+    """Choose model size based on API type and user argument"""
+    print(f"Choosing model size for API: {api_type} with argument: {model_arg}")
+    if api_type == "gemini":
+        LARGE_MODEL = "gemini-2.5-flash"
+        MEDIUM_MODEL = "gemini-1.5-flash"
+        if model_arg == "large":
+            return LARGE_MODEL
+        elif model_arg == "medium":
+            return MEDIUM_MODEL
+        else:
+            print(f"  Unknown model_arg '{model_arg}' for Gemini, defaulting to medium")
+            return MEDIUM_MODEL  # Default to medium model
+    elif api_type == "mistral":
+        LARGE_MODEL = "mistral-medium"
+        MEDIUM_MODEL = "mistral-small-latest"
+        SMALL_MODEL = "ministral-8b-latest"
+        if model_arg == "large":
+            return LARGE_MODEL
+        elif model_arg == "medium":
+            return MEDIUM_MODEL
+        elif model_arg == "small":
+            return SMALL_MODEL
+        else:
+            print(f"  Unknown model_arg '{model_arg}' for Mistral, defaulting to medium")
+            return MEDIUM_MODEL  # Default to medium model
+    else:
+        raise ValueError(f"Unknown API type: {api_type}")
 
 # ==================== TRAINING GENERATION ====================
-def generate_training_sample(uma_row, track_row, cards_sample, skills_list, api_type, api_key):
+def generate_training_sample(uma_row, track_row, cards_sample, skills_list, api_type, api_key, model_arg):
     """Generate one training result using AI"""
     
     # Prepare card names and specialties (coerce to strings, handle missing values)
@@ -357,9 +386,9 @@ def generate_training_sample(uma_row, track_row, cards_sample, skills_list, api_
     for attempt in range(max_retries):
         try:
             if api_type == "gemini":
-                response_text = call_gemini_api(prompt, api_key)
+                response_text = call_gemini_api(prompt, api_key, model_arg)
             elif api_type == "mistral":
-                response_text = call_mistral_api(prompt, api_key)
+                response_text = call_mistral_api(prompt, api_key, model_arg)
             else:
                 raise ValueError(f"Unknown API type: {api_type}")
             
@@ -469,6 +498,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--api", type=str, required=True, choices=["gemini", "mistral"],
                     help="API to use: gemini or mistral")
+    ap.add_argument("--model", type=str, required=True, default="medium", choices=["large", "medium", "small"],
+                    help="Model size to use (e.g., large, medium, small)")
     ap.add_argument("--api_key", type=str, default=None,
                     help="API key (or set GEMINI_API_KEY or MISTRAL_API_KEY env var)")
     ap.add_argument("--num_samples", type=int, default=100,
@@ -494,6 +525,9 @@ def main():
     
     results = []
     skills_list = data["skills"]["skill_name"].tolist()
+
+    # Choose the model size
+    chosen_model = choose_model_size(args.api, args.model)
     
     for i in range(args.num_samples):
         print(f"\nSample {i+1}/{args.num_samples}")
@@ -505,8 +539,8 @@ def main():
         
         # Generate training
         result = generate_training_sample(
-            uma_row, track_row, cards_sample, skills_list, 
-            args.api, api_key
+            uma_row, track_row, cards_sample, skills_list,
+            args.api, api_key, chosen_model
         )
         
         if result:
