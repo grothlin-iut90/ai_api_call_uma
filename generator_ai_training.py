@@ -19,7 +19,8 @@ import pandas as pd
 import requests
 
 # ==================== API CONFIGURATIONS ====================
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+# Updated Gemini API endpoint (correct as of Dec 2024)
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
 MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
 
 # ==================== TRAINING SIMULATION PROMPT ====================
@@ -179,11 +180,24 @@ def call_gemini_api(prompt: str, api_key: str) -> str:
         }
     }
     
-    response = requests.post(url, json=payload, timeout=30)
-    response.raise_for_status()
-    
-    data = response.json()
-    return data["candidates"][0]["content"]["parts"][0]["text"]
+    try:
+        response = requests.post(url, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        data = response.json()
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+    except requests.exceptions.HTTPError as e:
+        # Print detailed error message
+        try:
+            error_data = response.json()
+            error_msg = error_data.get("error", {}).get("message", str(e))
+            print(f"    Gemini API Error: {error_msg}")
+        except:
+            print(f"    HTTP Error: {e}")
+        raise
+    except Exception as e:
+        print(f"    Request Error: {e}")
+        raise
 
 
 def call_mistral_api(prompt: str, api_key: str) -> str:
@@ -200,11 +214,24 @@ def call_mistral_api(prompt: str, api_key: str) -> str:
         "max_tokens": 1000
     }
     
-    response = requests.post(MISTRAL_API_URL, headers=headers, json=payload, timeout=30)
-    response.raise_for_status()
-    
-    data = response.json()
-    return data["choices"][0]["message"]["content"]
+    try:
+        response = requests.post(MISTRAL_API_URL, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        data = response.json()
+        return data["choices"][0]["message"]["content"]
+    except requests.exceptions.HTTPError as e:
+        # Print detailed error message
+        try:
+            error_data = response.json()
+            error_msg = error_data.get("message", str(e))
+            print(f"    Mistral API Error: {error_msg}")
+        except:
+            print(f"    HTTP Error: {e}")
+        raise
+    except Exception as e:
+        print(f"    Request Error: {e}")
+        raise
 
 
 def extract_json_from_response(text: str) -> dict:
@@ -247,10 +274,13 @@ def load_datasets():
 def generate_training_sample(uma_row, track_row, cards_sample, skills_list, api_type, api_key):
     """Generate one training result using AI"""
     
-    # Prepare card names and specialties
-    card_names = ", ".join(cards_sample["name"].tolist())
-    card_specialties = ", ".join(cards_sample["stat_specialty"].tolist())
-    
+    # Prepare card names and specialties (coerce to strings, handle missing values)
+    card_names = ", ".join(cards_sample["name"].astype(str).tolist())
+    # Ensure specialties are strings and remove empty/null entries
+    specialties = cards_sample["stat_specialty"].fillna("").astype(str).tolist()
+    specialties = [s for s in specialties if s and s.lower() != "nan"]
+    card_specialties = ", ".join(specialties) if specialties else "None"
+
     # Determine distance preference for stamina calculation
     distance_prefs = {
         "pref_long": "Long",
@@ -484,7 +514,7 @@ def main():
                 "skills_endurance": len([s for s in result["acquired_skills"] if any(word in s.lower() for word in ["stamina", "endurance", "recovery"])]),
                 "skills_tactics": len([s for s in result["acquired_skills"] if any(word in s.lower() for word in ["position", "tactical", "focus", "wit"])]),
                 "skill_rating": round(len(result["acquired_skills"]) * 0.08, 2),
-                "card_ids": "|".join(cards_sample["card_id"].tolist()),
+                "card_ids": "|".join(cards_sample["card_id"].astype(str).tolist()),
                 "latent_score": round(random.uniform(0.6, 0.95), 3),
                 "finish_pos": random.randint(1, 18),  # Will be predicted by model
                 "finish_time": round(random.uniform(90.0, 140.0), 2),  # Placeholder
