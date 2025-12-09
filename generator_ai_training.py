@@ -17,6 +17,8 @@ import random
 from pathlib import Path
 import pandas as pd
 import requests
+from google import genai
+from google.genai import types
 
 # ==================== API CONFIGURATIONS ====================
 # Updated Gemini API endpoint (correct as of Dec 2024)
@@ -167,37 +169,53 @@ Return ONLY the JSON object, no markdown formatting, no additional text."""
 
 # ==================== API CALL FUNCTIONS ====================
 def call_gemini_api(prompt: str, api_key: str) -> str:
-    """Call Google Gemini API"""
-    url = f"{GEMINI_API_URL}?key={api_key}"
-    
-    payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }],
-        "generationConfig": {
-            "temperature": 0.7,
-            "maxOutputTokens": 1000,
-        }
-    }
-    
+    """Call Google Gemini API.
+
+    Prefer the official `google.genai` client when available (per the Gemini
+    documentation). 
+    """
+    if not api_key:
+        raise ValueError("API key is required for Gemini API calls")
+
+    # Try the genai client first for better compatibility with the documented
+    # usage. Handle several possible client shapes to be robust across
+    # genai versions.
     try:
-        response = requests.post(url, json=payload, timeout=30)
-        response.raise_for_status()
-        
-        data = response.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"]
-    except requests.exceptions.HTTPError as e:
-        # Print detailed error message
-        try:
-            error_data = response.json()
-            error_msg = error_data.get("error", {}).get("message", str(e))
-            print(f"    Gemini API Error: {error_msg}")
-        except:
-            print(f"    HTTP Error: {e}")
-        raise
+        # Configure the library if supported
+        if hasattr(genai, "configure"):
+            try:
+                genai.configure(api_key=api_key)
+            except Exception:
+                # Some versions/configurations won't accept configure; ignore
+                pass
+
+        client = None
+        if hasattr(genai, "Client"):
+            try:
+                client = genai.Client()
+            except Exception:
+                client = None
+
+        resp = None
+        if client is not None:
+            resp = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.7
+                )                    
+            )
+
+        if resp is not None:
+            try:
+                return resp.text
+            except Exception as e:
+                print(f"    genai client response has no .text attribute : {e}")
+                pass
+
     except Exception as e:
-        print(f"    Request Error: {e}")
-        raise
+        print(f"    genai client call failed: {e}")
+        return None
 
 
 def call_mistral_api(prompt: str, api_key: str) -> str:
