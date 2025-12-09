@@ -3,15 +3,15 @@
 ## Using Gemini API
 ```bash
 export GEMINI_API_KEY="your_key_here"
-python generate_training_with_ai.py --api gemini --num_samples 100 --out generated_training.csv
+python generator_ai_training.py --api gemini --num_samples 100 --out generated_training.csv
 ```
 ## Using Mistral API
 ```bash
 export MISTRAL_API_KEY="your_key_here"
-python generate_training_with_ai.py --api mistral --num_samples 50 --out generated_training.csv
+python generator_ai_training.py --api mistral --num_samples 50 --out generated_training.csv
 
 ## Or provide key directly
-python generate_training_with_ai.py --api gemini --api_key YOUR_KEY --num_samples 100
+python generator_ai_training.py --api gemini --api_key YOUR_KEY --num_samples 100
 ```
 # How It Works:
 

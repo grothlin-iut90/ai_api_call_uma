@@ -23,21 +23,68 @@ GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini
 MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
 
 # ==================== TRAINING SIMULATION PROMPT ====================
-TRAINING_PROMPT_TEMPLATE = """You are an expert Uma Musume training simulator. You will simulate the training of a horse character.
+TRAINING_PROMPT_TEMPLATE = """You are an expert Uma Musume training simulator. You will simulate a complete 3-year training journey for a horsegirl.
 
-# GAME MECHANICS:
-- Training increases stats: Speed, Stamina, Power, Guts, Wit
-- Base stats are provided, and training adds to these values
-- Support cards provide bonuses to training efficiency
-- Skills are acquired during training
-- Final stats should be realistic for competitive racing (typically 800-1200 per stat)
-- Mood affects training outcome (Good mood = better gains)
+# GAME MECHANICS OVERVIEW:
+The training system in Umamusume: Pretty Derby involves preparing a horsegirl over a limited number of days to compete in races and ultimately qualify for the URA Finale.
+
+## LEGACY UMAMUSUME (Inheritance):
+- Two Legacy Umamusume are selected at the start
+- They grant stat boosts and skill hints based on their own stats and aptitudes
+- Choose legacies that align with the trainee's target strengths (e.g., Sprint legacy for Sprint racer)
+- Veterans with excellent Speed, Power, Stamina, and A rank in Mile/Front are generally safe choices
+
+## SUPPORT CARDS (6-card deck):
+- 5 cards from gacha + 1 borrowed card
+- Provide bonuses: better starting stats, more fans, better mood, extra race stats
+- Shape skill development through skill hints during training
+- SSR/SR cards with relevant stats are preferred
+- Card level matters significantly for effectiveness
+
+## TRAINING SESSIONS:
+Each training session:
+- Uses 1 day and drains energy
+- Focuses on one stat: Speed, Stamina, Power, Guts, or Wit
+- Gains bonus when Support card friends join (visible in top right)
+- Early training priority: Speed, Stamina, Wit + sessions with most Support friends
+
+## ENERGY & REST:
+- Low energy reduces training effectiveness
+- Use Rest option to recover energy
+- Pushing too hard risks injury
+
+## MOOD SYSTEM:
+- Mood affects performance and stat gains significantly
+- Bad mood = reduced gains and poor race performance
+- Improve mood with recreational outings (costs 1 day)
+- Injury worsens mood → visit Infirmary before outings
+- Strategic conversations help maintain good mood
+
+## STAT TARGET RANGES (for URA Finale):
+- Speed: ~900 points (determines running speed)
+- Stamina: 300-800 (depends on race distance - Long needs more)
+- Power: 460-600 (affects acceleration)
+- Guts: 200-350 (willpower to hang on late in race)
+- Wit: 320-400 (focus and smart decisions mid-race)
+
+## SKILLS:
+- Unlocked using Skill Points throughout training
+- Prioritize Speed and Stamina boosting skills
+- Skills with Hint discounts are especially valuable
+- Skill hints come from Support cards in deck
+
+## RACE REQUIREMENTS:
+- Must meet fan count requirements
+- Enter extra races through Races menu to gain fans
+- Win goal races to progress toward URA Finale
 
 # TRAINING CONSTRAINTS:
-- Each stat can gain between 200-600 points from training
-- Speed and Stamina are crucial for racing
-- Skills should match the horse's aptitudes and style
-- Support cards influence which stats grow faster
+- Training typically adds 200-600 points per stat from base values
+- Speed and Stamina are most crucial
+- Skills should match horse's aptitudes and racing style
+- Support card specialties heavily influence which stats grow faster
+- Good mood throughout training = higher final stats
+- Balanced training across all 5 stats is important (don't neglect Guts/Wit)
 
 # INPUT DATA:
 Horse: {uma_name} (ID: {uma_id})
@@ -65,29 +112,56 @@ Available Skills (choose 3-5 appropriate ones): {skills}
 Race Track: {track_name} ({material}, {distance})
 
 # YOUR TASK:
-Simulate a complete training program and return ONLY a valid JSON object with this exact structure:
+Simulate a complete 3-year training journey considering all the mechanics above, and return ONLY a valid JSON object with this exact structure:
 {{
   "final_speed": <number>,
   "final_stamina": <number>,
   "final_power": <number>,
   "final_guts": <number>,
   "final_wit": <number>,
-  "acquired_skills": ["skill1", "skill2", "skill3"],
+  "acquired_skills": ["skill1", "skill2", "skill3", "skill4"],
   "mood": "<Good|Normal|Bad>",
-  "training_summary": "<brief 1-2 sentence summary>"
+  "training_summary": "<brief 2-3 sentence narrative of the training journey>",
+  "injuries_count": <0-3>,
+  "rest_days_used": <number>
 }}
 
-Requirements:
-- final_speed should be base + 200-600 (influenced by growth_spd_pct and cards)
-- final_stamina should be base + 200-600 (influenced by growth_sta_pct and cards)
-- final_power should be base + 200-600 (influenced by growth_pow_pct and cards)
-- final_guts should be base + 200-600 (influenced by growth_gut_pct and cards)
-- final_wit should be base + 200-600 (influenced by growth_wit_pct and cards)
-- acquired_skills: 3-5 skills from the provided list that match the horse's aptitudes
-- mood: randomly assign Good (70%), Normal (20%), or Bad (10%)
-- Consider the support cards' specialties when deciding stat gains
+Requirements for final stats (base + training gains):
+- final_speed: aim for ~900 total (base + 200-600 gain, boosted by growth_spd_pct% and Speed support cards)
+- final_stamina: 300-800 total depending on distance preference (base + 200-600, boosted by growth_sta_pct% and Stamina cards)
+  * Long distance needs 600-800 stamina
+  * Medium distance needs 450-650 stamina  
+  * Mile/Sprint needs 300-500 stamina
+- final_power: 460-600 total (base + 200-400, boosted by growth_pow_pct% and Power cards)
+- final_guts: 200-350 total (base + 100-300, boosted by growth_gut_pct% and Guts cards)
+- final_wit: 320-400 total (base + 150-350, boosted by growth_wit_pct% and Wit cards)
 
-Return ONLY the JSON, no additional text."""
+Skills selection (choose 4-6 appropriate skills):
+- Prioritize Speed and Stamina boosting skills
+- Match skills to horse's aptitudes (e.g., Sprint skills for pref_sprint=A)
+- Match skills to racing style (Front/Pace/Late/End)
+- Consider skills that the Support cards would provide hints for
+- Include skills with strategic value (hint discounts, recovery, acceleration)
+
+Mood determination:
+- Good (70% probability): well-managed training, few injuries, good card synergy
+- Normal (20% probability): average training with some setbacks
+- Bad (10% probability): multiple injuries or poor energy management
+
+Training narrative:
+- Describe key moments: early training focus, injuries/setbacks, breakthrough moments
+- Mention which Support cards were most helpful
+- Note if legacy inheritance was particularly beneficial
+
+Realism factors:
+- Support cards specializing in Speed → higher Speed gains
+- Support cards specializing in Stamina → higher Stamina gains (etc.)
+- Distance preference affects stamina needs (Long distance = more stamina training)
+- Style preference (Front/Pace/Late/End) affects Power and Wit balance
+- Good mood throughout = higher overall stat totals
+- Injuries (1-3 during training) reduce final stats slightly
+
+Return ONLY the JSON object, no markdown formatting, no additional text."""
 
 
 # ==================== API CALL FUNCTIONS ====================
@@ -173,14 +247,32 @@ def load_datasets():
 def generate_training_sample(uma_row, track_row, cards_sample, skills_list, api_type, api_key):
     """Generate one training result using AI"""
     
-    # Prepare card names
+    # Prepare card names and specialties
     card_names = ", ".join(cards_sample["name"].tolist())
+    card_specialties = ", ".join(cards_sample["stat_specialty"].tolist())
     
-    # Prepare skills list (limit to 20 random skills)
-    skills_sample = random.sample(skills_list, min(20, len(skills_list)))
+    # Determine distance preference for stamina calculation
+    distance_prefs = {
+        "pref_long": "Long",
+        "pref_medium": "Medium", 
+        "pref_mile": "Mile",
+        "pref_sprint": "Sprint"
+    }
+    best_distance = "Medium"
+    best_letter = "E"
+    for col, dist_name in distance_prefs.items():
+        letter = uma_row[col]
+        if letter in ["A", "B", "S"]:
+            if letter > best_letter or best_letter == "E":
+                best_distance = dist_name
+                best_letter = letter
+    
+    # Filter skills by rarity (prefer higher quality)
+    skills_df = pd.DataFrame({"skill_name": skills_list})
+    skills_sample = random.sample(skills_list, min(25, len(skills_list)))
     skills_str = ", ".join(skills_sample)
     
-    # Format prompt
+    # Format prompt with enhanced information
     prompt = TRAINING_PROMPT_TEMPLATE.format(
         uma_name=uma_row["uma_name"],
         uma_id=uma_row["uma_id"],
@@ -205,7 +297,7 @@ def generate_training_sample(uma_row, track_row, cards_sample, skills_list, api_
         growth_pow_pct=uma_row["growth_pow_pct"],
         growth_gut_pct=uma_row["growth_gut_pct"],
         growth_wit_pct=uma_row["growth_wit_pct"],
-        cards=card_names,
+        cards=f"{card_names} (Specialties: {card_specialties})",
         skills=skills_str,
         track_name=track_row["name"],
         material=track_row["material"],
@@ -232,6 +324,12 @@ def generate_training_sample(uma_row, track_row, cards_sample, skills_list, api_
             if not all(k in result for k in required_keys):
                 raise ValueError("Missing required keys in AI response")
             
+            # Add default values for new fields if missing
+            if "injuries_count" not in result:
+                result["injuries_count"] = random.randint(0, 2)
+            if "rest_days_used" not in result:
+                result["rest_days_used"] = random.randint(5, 20)
+            
             return result
             
         except Exception as e:
@@ -241,30 +339,80 @@ def generate_training_sample(uma_row, track_row, cards_sample, skills_list, api_
             else:
                 # Fallback: generate synthetic data
                 print("  Using fallback synthetic generation")
-                return generate_fallback_training(uma_row)
+                return generate_fallback_training(uma_row, cards_sample, best_distance)
     
     return None
 
 
-def generate_fallback_training(uma_row):
+def generate_fallback_training(uma_row, cards_sample, distance_pref):
     """Fallback synthetic training when API fails"""
-    base_gains = {
-        "Speed": random.randint(200, 600),
-        "Stamina": random.randint(200, 600),
-        "Power": random.randint(200, 600),
-        "Guts": random.randint(200, 600),
-        "Wit": random.randint(200, 600)
+    
+    # Determine stamina needs based on distance preference
+    stamina_targets = {
+        "Long": (600, 800),
+        "Medium": (450, 650),
+        "Mile": (350, 500),
+        "Sprint": (300, 450)
     }
+    stamina_range = stamina_targets.get(distance_pref, (400, 600))
+    
+    # Base gains with some randomness
+    speed_gain = random.randint(250, 550) + int(uma_row["growth_spd_pct"] * 5)
+    stamina_gain = random.randint(200, 500) + int(uma_row["growth_sta_pct"] * 5)
+    power_gain = random.randint(200, 400) + int(uma_row["growth_pow_pct"] * 3)
+    guts_gain = random.randint(100, 300) + int(uma_row["growth_gut_pct"] * 3)
+    wit_gain = random.randint(150, 350) + int(uma_row["growth_wit_pct"] * 3)
+    
+    # Apply support card bonuses (simplified)
+    card_specialties = cards_sample["stat_specialty"].value_counts()
+    if "Speed" in card_specialties.index:
+        speed_gain += card_specialties["Speed"] * 30
+    if "Stamina" in card_specialties.index:
+        stamina_gain += card_specialties["Stamina"] * 30
+    if "Power" in card_specialties.index:
+        power_gain += card_specialties["Power"] * 20
+    
+    # Adjust stamina to target range
+    target_stamina = random.randint(*stamina_range)
+    stamina_gain = max(50, target_stamina - uma_row["Stamina"])
+    
+    # Mood probability
+    mood = random.choices(
+        ["Good", "Normal", "Bad"],
+        weights=[0.7, 0.2, 0.1]
+    )[0]
+    
+    # Reduce gains if bad mood
+    if mood == "Bad":
+        speed_gain = int(speed_gain * 0.85)
+        stamina_gain = int(stamina_gain * 0.85)
+        power_gain = int(power_gain * 0.85)
+    
+    # Generate appropriate skills based on style and aptitudes
+    default_skills = []
+    style = uma_row["default_style"]
+    if style == "Front":
+        default_skills = ["Lead Start", "Quick Acceleration", "Top Speed Boost"]
+    elif style == "Pace":
+        default_skills = ["Steady Pace", "Mid-Race Surge", "Tactical Positioning"]
+    elif style == "Late":
+        default_skills = ["Late Charge", "Final Sprint", "Closing Kick"]
+    elif style == "End":
+        default_skills = ["Last Stand", "Endurance Master", "Final Push"]
+    
+    default_skills.append("Stamina Conservation")
     
     return {
-        "final_speed": uma_row["Speed"] + base_gains["Speed"],
-        "final_stamina": uma_row["Stamina"] + base_gains["Stamina"],
-        "final_power": uma_row["Power"] + base_gains["Power"],
-        "final_guts": uma_row["Guts"] + base_gains["Guts"],
-        "final_wit": uma_row["Wit"] + base_gains["Wit"],
-        "acquired_skills": ["Speed Up", "Endurance", "Acceleration"],
-        "mood": random.choice(["Good", "Good", "Good", "Normal", "Bad"]),
-        "training_summary": "Fallback training result"
+        "final_speed": uma_row["Speed"] + speed_gain,
+        "final_stamina": uma_row["Stamina"] + stamina_gain,
+        "final_power": uma_row["Power"] + power_gain,
+        "final_guts": uma_row["Guts"] + guts_gain,
+        "final_wit": uma_row["Wit"] + wit_gain,
+        "acquired_skills": default_skills[:4],
+        "mood": mood,
+        "training_summary": f"Fallback training for {style} style racer with focus on {distance_pref} distances.",
+        "injuries_count": random.randint(0, 2),
+        "rest_days_used": random.randint(5, 15)
     }
 
 
@@ -320,29 +468,32 @@ def main():
                 "uma_id": uma_row["uma_id"],
                 "uma_name": uma_row["uma_name"],
                 "style": uma_row["default_style"],
-                "style_letter": uma_row["default_style"][0],  # Simplified
+                "style_letter": uma_row["default_style"][0],
                 "material": track_row["material"],
-                "material_letter": "A",  # Will be computed properly
+                "material_letter": uma_row[f"pref_{'turf' if track_row['material']=='Turf' else 'dirt'}"],
                 "distance": track_row["distance"],
-                "distance_letter": "A",  # Will be computed properly
+                "distance_letter": uma_row[f"pref_{track_row['distance'].lower()}"],
                 "mood": result["mood"],
-                "mood_mult": 1.0 if result["mood"] == "Good" else 0.9,
-                "Speed": result["final_speed"],
-                "Stamina": result["final_stamina"],
-                "Power": result["final_power"],
-                "Guts": result["final_guts"],
-                "Wit": result["final_wit"],
-                "skills_offense": len([s for s in result["acquired_skills"] if "speed" in s.lower()]),
-                "skills_endurance": len([s for s in result["acquired_skills"] if "endurance" in s.lower() or "stamina" in s.lower()]),
-                "skills_tactics": len(result["acquired_skills"]) - 2,
-                "skill_rating": len(result["acquired_skills"]) * 0.1,
+                "mood_mult": 1.0 if result["mood"] == "Good" else (0.95 if result["mood"] == "Normal" else 0.85),
+                "Speed": int(result["final_speed"]),
+                "Stamina": int(result["final_stamina"]),
+                "Power": int(result["final_power"]),
+                "Guts": int(result["final_guts"]),
+                "Wit": int(result["final_wit"]),
+                "skills_offense": len([s for s in result["acquired_skills"] if any(word in s.lower() for word in ["speed", "acceleration", "surge"])]),
+                "skills_endurance": len([s for s in result["acquired_skills"] if any(word in s.lower() for word in ["stamina", "endurance", "recovery"])]),
+                "skills_tactics": len([s for s in result["acquired_skills"] if any(word in s.lower() for word in ["position", "tactical", "focus", "wit"])]),
+                "skill_rating": round(len(result["acquired_skills"]) * 0.08, 2),
                 "card_ids": "|".join(cards_sample["card_id"].tolist()),
-                "latent_score": random.uniform(0.5, 1.0),
+                "latent_score": round(random.uniform(0.6, 0.95), 3),
                 "finish_pos": random.randint(1, 18),  # Will be predicted by model
-                "training_summary": result.get("training_summary", "")
+                "finish_time": round(random.uniform(90.0, 140.0), 2),  # Placeholder
+                "training_summary": result.get("training_summary", ""),
+                "injuries_count": result.get("injuries_count", 0),
+                "rest_days_used": result.get("rest_days_used", 10)
             }
             results.append(row)
-            print(f"  Generated: {uma_row['uma_name']} -> Speed:{result['final_speed']} Stamina:{result['final_stamina']}")
+            print(f"  Generated: {uma_row['uma_name']} -> Speed:{result['final_speed']} Stamina:{result['final_stamina']} (Mood: {result['mood']})")
         
         # Rate limiting
         time.sleep(1)
